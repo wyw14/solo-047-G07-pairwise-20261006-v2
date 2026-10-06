@@ -3,6 +3,7 @@ package api
 import (
 	"time"
 
+	"github.com/wyw14/cry-103/internal/linescore"
 	"github.com/wyw14/cry-103/internal/otdr"
 )
 
@@ -76,4 +77,8 @@ type IncidentRequest struct {
 	TraceID      string  `json:"trace_id"`
 	DistanceKM   float64 `json:"distance_km"`
 	RequiresPeer bool    `json:"requires_peer"`
+}
+
+type LineHealthListResponse struct {
+	Items []linescore.Assessment `json:"items"`
 }

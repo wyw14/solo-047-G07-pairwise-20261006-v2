@@ -12,6 +12,7 @@ import (
 	"github.com/wyw14/cry-103/internal/feed"
 	"github.com/wyw14/cry-103/internal/incident"
 	"github.com/wyw14/cry-103/internal/landing"
+	"github.com/wyw14/cry-103/internal/linescore"
 	"github.com/wyw14/cry-103/internal/otdr"
 	"github.com/wyw14/cry-103/internal/platform"
 	"github.com/wyw14/cry-103/internal/repair"
@@ -59,6 +60,17 @@ func testServer(t *testing.T) *Server {
 	repository := telemetry.NewRepository()
 	acceptance := repair.NewAcceptanceService(switchover.NewRestorer(drainer, activator, registry, ids, clock.Now), clock.Now)
 	acceptance.Register("S3", target, path)
+	ageEvaluator, err := telemetry.NewAgeEvaluator(clock.Now, 10*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lineHealth, err := linescore.NewService(
+		map[string]*route.Route{"R-S3": path}, repository, ageEvaluator, clock.Now, linescore.DefaultConfig(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lineHealth.Register("R-S3", "R07")
 	services := &Services{
 		Clock: clock, IDs: ids, Journal: store.NewJournal(filepath.Join(t.TempDir(), "events.jsonl")),
 		Spans: map[string]*span.Span{"S3": target}, Routes: map[string]*route.Route{"R-S3": path},
@@ -67,7 +79,7 @@ func testServer(t *testing.T) *Server {
 		Switchovers: switchover.NewSessionService(drainer, activator, ids, clock.Now, time.Second),
 		Permits:     permitService, Receipts: receipts, Acceptance: acceptance,
 		Telemetry: telemetry.NewIngestor(repository, clock.Now, projector), TelemetryRepository: repository,
-		Admission: incident.NewAdmissionService(telemetry.NewMuteManager(clock.Now)),
+		Admission: incident.NewAdmissionService(telemetry.NewMuteManager(clock.Now)), LineHealth: lineHealth,
 	}
 	return NewServer(services)
 }

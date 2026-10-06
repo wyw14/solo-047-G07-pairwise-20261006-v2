@@ -9,6 +9,7 @@ import (
 	"github.com/wyw14/cry-103/internal/feed"
 	"github.com/wyw14/cry-103/internal/incident"
 	"github.com/wyw14/cry-103/internal/landing"
+	"github.com/wyw14/cry-103/internal/linescore"
 	"github.com/wyw14/cry-103/internal/otdr"
 	"github.com/wyw14/cry-103/internal/platform"
 	"github.com/wyw14/cry-103/internal/repair"
@@ -92,6 +93,13 @@ func buildServices(cfg config) (*api.Services, error) {
 	if err != nil {
 		return nil, err
 	}
+	lineHealth, err := linescore.NewService(
+		map[string]*route.Route{"R-S3": routeS3}, telemetryRepository, ageEvaluator, now, linescore.DefaultConfig(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("line health service: %w", err)
+	}
+	lineHealth.Register("R-S3", "R07")
 	health := landing.NewHealthService(ageEvaluator, heartbeats)
 	if _, err := health.Record(station, 1, now()); err != nil {
 		return nil, fmt.Errorf("seed heartbeat checkpoint: %w", err)
@@ -121,7 +129,7 @@ func buildServices(cfg config) (*api.Services, error) {
 		Acceptance: acceptance, Telemetry: ingestor, TelemetryRepository: telemetryRepository, Admission: admission,
 		Classifier: incident.NewClassifier(), Correlator: otdr.NewCorrelator(), Health: health, Station: station,
 		WetPlantTests: wetPlantTests, Ramps: ramps, Assets: assets,
-		RepeaterHealth: healthProjector, Actuator: actuator,
+		RepeaterHealth: healthProjector, LineHealth: lineHealth, Actuator: actuator,
 		Tests: make(map[string]*repair.TestSession), Incidents: make(map[string]*incident.Incident),
 	}, nil
 }
