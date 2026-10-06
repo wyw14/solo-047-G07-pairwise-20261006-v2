@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/wyw14/cry-103/internal/feed"
+	"github.com/wyw14/cry-103/internal/healthscore"
 	"github.com/wyw14/cry-103/internal/incident"
 	"github.com/wyw14/cry-103/internal/landing"
 	"github.com/wyw14/cry-103/internal/otdr"
@@ -45,6 +46,7 @@ type Services struct {
 	Ramps               *repeater.RampController
 	Assets              *repair.Assets
 	RepeaterHealth      *repeater.HealthProjector
+	HealthScore         *healthscore.Scorer
 	Actuator            *feed.Actuator
 	Tests               map[string]*repair.TestSession
 	Incidents           map[string]*incident.Incident

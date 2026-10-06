@@ -7,6 +7,7 @@ import (
 
 	"github.com/wyw14/cry-103/internal/api"
 	"github.com/wyw14/cry-103/internal/feed"
+	"github.com/wyw14/cry-103/internal/healthscore"
 	"github.com/wyw14/cry-103/internal/incident"
 	"github.com/wyw14/cry-103/internal/landing"
 	"github.com/wyw14/cry-103/internal/otdr"
@@ -109,19 +110,26 @@ func buildServices(cfg config) (*api.Services, error) {
 			assets.AddCircuit(circuit)
 		}
 	}
+	routes := map[string]*route.Route{"R-S3": routeS3}
+	scorer, err := healthscore.NewScorer(telemetryRepository,
+		api.NewLineLookup(routes, map[string][]string{"R-S3": {"R07"}}),
+		healthscore.DefaultThresholds(), now)
+	if err != nil {
+		return nil, err
+	}
 	actuator := feed.NewActuator()
 	ramps := repeater.NewRampController(actuator, telemetryRepository, telemetry.StabilityWindow{MinimumSamples: 2, MaximumSpread: 1.5, MinimumPeriod: time.Second}, checkpoints, now)
 	wetPlantTests := repair.NewTestService(mutes, ids, now, 30*time.Second)
 
 	return &api.Services{
 		Clock: clock, IDs: ids, Journal: journal,
-		Spans: map[string]*span.Span{"S3": spanS3}, Routes: map[string]*route.Route{"R-S3": routeS3},
+		Spans: map[string]*span.Span{"S3": spanS3}, Routes: routes,
 		Repeaters: map[string]*repeater.Repeater{"R07": repeaterR07}, Topology: topologies,
 		OTDR: otdrService, Switchovers: switchovers, Permits: permits, Receipts: receipts,
 		Acceptance: acceptance, Telemetry: ingestor, TelemetryRepository: telemetryRepository, Admission: admission,
 		Classifier: incident.NewClassifier(), Correlator: otdr.NewCorrelator(), Health: health, Station: station,
 		WetPlantTests: wetPlantTests, Ramps: ramps, Assets: assets,
-		RepeaterHealth: healthProjector, Actuator: actuator,
+		RepeaterHealth: healthProjector, HealthScore: scorer, Actuator: actuator,
 		Tests: make(map[string]*repair.TestSession), Incidents: make(map[string]*incident.Incident),
 	}, nil
 }
